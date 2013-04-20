@@ -9,6 +9,8 @@ var Topology = require('tower-topology').Topology
   , adapter = require('tower-adapter')
   , each = require('part-each-array')
   , slice = [].slice
+  , Variable = require('./lib/variable')
+  , Constraint = require('./lib/constraint')
   // used in `.where`
   , context;
 
@@ -47,6 +49,7 @@ var queries = exports.queries = {};
 function Query(name) {
   this.name = name;
   this.criteria = [];
+  this.variables = {};
 }
 
 /**
@@ -246,6 +249,8 @@ Query.prototype.relation = function(type, key){
  */
 
 Query.prototype.constraint = function(key, op, val){
+  var _left = this.variables[key] || (this.variables[key] = query.attr(key));
+  //var _right = right(this, val);
   return this.push('constraint', key, op, val);
 }
 
@@ -374,7 +379,6 @@ function queryToTopology(q) {
       case 'start':
         // XXX: since this is just going to support one adapter at a time for now,
         // need to pass criteria off to it.
-        var adapterName = adapterFor(criterion[1]);
         topology.stream(name = criterion[1] + '.find', { constraints: [] });
         break;
       case 'constraint':
@@ -387,37 +391,26 @@ function queryToTopology(q) {
 }
 
 /**
+ * Lookup for adapter by model/adapter/stream name.
+ */
+
+adapter.map = {};
+
+/**
+ * Takes a string such as `.where('createdAt')`
+ * and figures out if it's an alias or not,
+ * and then it breaks it into the adapter/model/attr.
+ *
+ * They get cached.
+ *
  * user
  * facebook.user
  * twitter.user
  * users
  */
 
-function adapterFor(path) {
-  if (adapter.map[path]) return adapter(adapter.map[path]);
-
-  // need to get plural/singular map of model (user/users)
-  var parts = path.split('.');
-  // 3 === [adapter, model, attr|relation]
-  // 2 === [adapter, model]
-  // 2 === [model, attr]
-  // 1 === [model]
-  // 1 === [attr]
-
-  var adapters = adapter.instances;
-
-  for (var adapterName in adapters) {
-    var models = adapters[adapterName].resources;
-    for (var modelName in models) {
-      adapter.map[adapterName + '.' + modelName] = adapterName;
-    }
-  }
-
-  // console.log(adapter.map)
+query.attr = function(val){
+  return new Variable(val);
 }
 
-/**
- * Lookup for adapter by model/adapter/stream name.
- */
-
-adapter.map = {};
+query.v = query.variable = query.attr;

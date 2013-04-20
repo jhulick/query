@@ -163,4 +163,31 @@ describe('query', function(){
 
     assert(named === query('foo'));
   });
+
+  it('should build nodes', function(){
+    var q = query()
+      // mapped(user) -> reduced(user)
+      .select('user')
+      .select('facebook.user')
+      .select('twitter.user')
+      // random constraints purely on the models
+      .where('user.likeCount').gte(10)
+      .where('facebook.user.likeCount').gte(20)
+      // constraints between models
+      // .on('exec', function(context) { context.tests[user.id] = context.constraints.length })
+      // if (context.tests[user.id] === 0)
+      //    it passed all the constraints! it's been reduced!
+      //
+      // mapped(facebook.user) -> reduced(facebook.user)
+      // reduced(facebook.user) -> reduced(user)
+      // fetch facebook.user first, and use those records against `user`.
+      .where('user.email', 'facebook.user.email')
+      // twitter.user -> reduced(facebook.user)
+      .where('facebook.user.username', 'twitter.user.username')
+      // twitter.user -> reduced(user)
+      .where('user.firstName', 'twitter.user.firstName')
+      .returns('user');
+
+    console.log(q.variables)
+  });
 });
